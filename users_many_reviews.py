@@ -1,6 +1,6 @@
 import json
 
-with open('user_review.json') as json_data:
+with open('user_review_dictionary.json') as json_data:
     d = json.load(json_data)
 
 mongo_biguser =[]
