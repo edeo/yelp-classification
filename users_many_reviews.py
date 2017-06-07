@@ -10,3 +10,6 @@ for user in d.keys():
         mongo_biguser.append(user)
 
 users= {"user_ids": mongo_biguser }
+
+with open('users_many_reviews_dictionary.json', 'w') as outfile:
+    json.dump(users, outfile)
