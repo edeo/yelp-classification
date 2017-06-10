@@ -10,16 +10,16 @@ from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.naive_bayes import GaussianNB
 from sklearn import svm
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_score
 from sklearn.metrics import log_loss
+import string
 from sklearn.feature_extraction.text import TfidfVectorizer
 import xgboost as xgb
 from gensim import corpora, models, similarities, matutils
-import tqdm
 #################################
 #Declare import word dictionaries
 #################################
@@ -85,7 +85,7 @@ class TfIdfGramTransformer(BaseEstimator, TransformerMixin):
         tf_vector = vectorizer.transform(reviews)
         return tf_vector
 
-    def fit(self, reviews, y=None, n_grams = (1,1)):
+    def fit(self, reviews, y=None, n_grams = (0,2)):
         vectorizer = TfidfVectorizer(ngram_range = n_grams, stop_words = 'english')
         vectorizer.fit(reviews)
         """Returns `self` unless something different happens in train and test"""
@@ -103,7 +103,7 @@ def get_restaurant_reviews(ip, business_ids):
 
     restreview = {}
 
-    for i in tqdm.tqdm(range(0, len(business_ids))):
+    for i in range(0, len(business_ids)):
         rlist = []
         for obj in reviews.find({'business_id':business_ids[i]}):
             rlist.append(obj)
@@ -111,7 +111,7 @@ def get_restaurant_reviews(ip, business_ids):
 
     return restreview
 
-def fit_lsi(train_reviews)
+def fit_lsi(train_reviews):
     #Input: train_reviews is a list of reviews that will be used to train the LSI feature transformer
     #Output: A trained LSI model and the transformed training reviews
 
@@ -131,7 +131,7 @@ def fit_lsi(train_reviews)
 
     lsi = models.LsiModel(corpus_tfidf, id2word=dictionary, num_topics=topics)
 
-    return lsi, topics
+    return lsi, topics, dictionary
 
 def make_featureunion(sent_percent=True, tf = True, lda = True):
     #Input: sent_percent, tf, and lda are all boolean variables and indicate which features should be used in the ML algorithm
@@ -156,13 +156,14 @@ def make_featureunion(sent_percent=True, tf = True, lda = True):
     else:
         comb_features = FeatureUnion([('sent_percent',SentimentPercentage()),('tf', TfIdfGramTransformer()), 
                               ('lda', Pipeline([('bow', TfidfVectorizer(stop_words='english', ngram_range = (1,1))), 
-                                        ('lda_transform', LatentDirichletAllocation(n_topics=500))]))
+                                        ('lda_transform', LatentDirichletAllocation(n_topics=500))])),
+                              ('tf_bow', TfidfVectorizer(stop_words='english'))
                              ])
 
     return comb_features
 
 
-def fit_model(train_features, train_labels, svm = False, RandomForest = False, nb = False):
+def fit_model(train_features, train_labels, svm_clf = False, RandomForest = False, nb = False):
     #Input: SVM, RandomForest, and NB are all boolean variables and indicate which model should be fitted
     #SVM: Linear Support Vector Machine
     #RandomForest: Random Forest, we set the max_depth equal to 50 because of prior tests
@@ -171,11 +172,11 @@ def fit_model(train_features, train_labels, svm = False, RandomForest = False, n
     #train_labels: Labels for the training reviews, transformed into a binary variable
     #Output: A fitted model object
 
-    if svm == True:
+    if svm_clf == True:
         clf = svm.LinearSVC()
         clf.fit(train_features, train_labels)
     elif RandomForest == True:
-        clf = RandomForestClassifier(max_depth = 100, max_leaf_nodes=50)
+        clf = RandomForestClassifier(max_depth = 100, max_leaf_nodes=50, criterion='entropy')
         clf.fit(train_features, train_labels)
     elif nb == True:
         clf = GaussianNB()
@@ -198,7 +199,7 @@ def fit_features(train_reviews, comb_features):
 
     return comb_features
 
-def get_lsi_features(reviews, lsi, topics):
+def get_lsi_features(reviews, lsi, topics, dictionary):
     #Input:
     #reviews: A list of reviews to be transformed
     #lsi: A fitted LSI model 
@@ -211,11 +212,11 @@ def get_lsi_features(reviews, lsi, topics):
         texts = [[word for word in review.lower().split() if (word not in stop_words)]
               for review in reviews]
         corpus = [dictionary.doc2bow(text) for text in texts]
+        tfidf = models.TfidfModel(corpus)
         reviews_tfidf = tfidf[corpus]
         reviews_lsi = lsi[reviews_tfidf]
         reviews_lsi = [[text[1] for text in review] for review in reviews_lsi]
         reviews_lsi = [[0.000000000001] * topics if len(x) != topics else x for x in reviews_lsi]
-        
         reviews_lsi = sparse.coo_matrix(reviews_lsi)
 
     return reviews_lsi
@@ -250,7 +251,7 @@ def make_biz_df(user_id, restreview):
     rest_reviews = []
     rest_ratings = []
     biz_ids = []
-    for i in tqdm.tqdm(range(0, len(restreview.keys()))):
+    for i in range(0, len(restreview.keys())):
         for restaurant in restreview[restreview.keys()[i]]:
             if restaurant['user_id'] != user_id:
                 rest_reviews.append(restaurant['text'])
@@ -258,6 +259,8 @@ def make_biz_df(user_id, restreview):
                 biz_ids.append(restreview.keys()[i])
             else:
                 pass
+    rest_reviews = [review.encode('utf-8').translate(None, string.punctuation) for review in rest_reviews]
+
     biz_df = pd.DataFrame({'review_text': rest_reviews, 'rating': rest_ratings, 'biz_id': biz_ids})
 
     return biz_df
@@ -275,12 +278,14 @@ def make_user_df(user_specific_reviews):
         user_ratings.append(review['stars'])
         business_ids.append(review['business_id'])
 
+    ###WE SHOULD MAKE THE OUR OWN PUNCTUATION RULES
+    #https://www.tutorialspoint.com/python/string_translate.htm
     user_reviews = [review.encode('utf-8').translate(None, string.punctuation) for review in user_reviews]
         
     user_df = pd.DataFrame({'review_text': user_reviews, 'rating': user_ratings, 'biz_id': business_ids})
     return user_df
 
-def test_user_set(test_set, clf, restaurant_df, users_df, comb_features, threshold):
+def test_user_set(test_set, clf, restaurant_df, users_df, comb_features, threshold, lsi = None, topics = None, dictionary = None):
     #Input: 
     #test_set: The set of restaurant IDs, split from the users total set, on which we will test our classifier
     #clf: Classifier trained on the fully stacked features 
@@ -290,37 +295,50 @@ def test_user_set(test_set, clf, restaurant_df, users_df, comb_features, thresho
     #threshold: A float value 
     #Note: lsi and topics should be GLOBAL variables after running fit_lsi
     #Output: A list of errors on predicting whether or not the user likes the restaurant in the test set
-
-    for i in tqdm.tqdm(range(0,len(test_set))):
+    comb_error = []
+    for i in range(0,len(test_set)):
         predicted_rating = 0
         #Get reviews for that restaurant
         test_reviews =[]
-        test_reviews.extend(list(restaurant_df[restaurant_df['biz_id'] == test_set[i]]['review_text']))
         
+        test_reviews.extend(list(restaurant_df[restaurant_df['biz_id'] == test_set[i]]['review_text']))
         #Transform features
         test_features = comb_features.transform(test_reviews)
-        
         #LSI Features
-        test_lsi = get_lsi_features(test_reviews, lsi, topics)
+        
 
         #Stack the features
-        stacked_test_features = stack_lsi_features(test_features, test_lsi)
-
+        if lsi == None or topics == None or dictionary == None:
+            stacked_test_features = test_features.todense()
+        else:
+            test_lsi = get_lsi_features(test_reviews, lsi, topics, dictionary)
+            stacked_test_features = stack_lsi_features(test_features, test_lsi)
+            stacked_test_features =  stacked_test_features.todense()
         #Get ML prediction
         test_prediction = clf.predict(stacked_test_features)
 
         if test_prediction.mean() > threshold:
             predicted_rating = 1
 
-        actual_rating = list(user_df[user_df['biz_id'] == test_set[i]]['rating'])[0]
+        actual_rating = list(users_df[users_df['biz_id'] == test_set[i]]['rating'])[0]
+
         if actual_rating >= 4:
             actual_rating = 1
         else:
             actual_rating = 0
 
-        comb_error.append(abs(predicted_rating - actual_rating))
+        comb_error.append((test_prediction,abs(predicted_rating - actual_rating)))
+    return comb_error
 
-        return comb_error
-
-def get_top_recs():
-    
+def get_top_ten_recs(test_predictions):
+    #Input: 
+    #test_predictions: A list of classification predictions for the user's set of test restaurants
+    #Output: A list of the top 10 restaurants that the classification algorithm is most confident in
+    if test_predictions:
+        confidence_tuple = [(float(sum(list(x[0])))/float(len(x[0])),x[1]) for x in test_predictions]
+        confidence_tuple.sort()
+        top_ten = confidence_tuple[-10:]
+        return top_ten
+    else:
+        print "Empty List Passed"
+        return None
