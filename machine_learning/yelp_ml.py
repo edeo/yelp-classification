@@ -12,9 +12,12 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.naive_bayes import GaussianNB
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import Lasso
 from sklearn import svm
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_score
+import math
 from sklearn.metrics import log_loss
 import string
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -163,7 +166,7 @@ def make_featureunion(sent_percent=True, tf = True, lda = True):
     return comb_features
 
 
-def fit_model(train_features, train_labels, svm_clf = False, RandomForest = False, nb = False):
+def fit_model(train_features, train_labels, svm_clf = False, RandomForest = False, nb = False, lasso = False, kneighbor=False):
     #Input: SVM, RandomForest, and NB are all boolean variables and indicate which model should be fitted
     #SVM: Linear Support Vector Machine
     #RandomForest: Random Forest, we set the max_depth equal to 50 because of prior tests
@@ -181,6 +184,12 @@ def fit_model(train_features, train_labels, svm_clf = False, RandomForest = Fals
     elif nb == True:
         clf = GaussianNB()
         clf.fit(train_features, train_labels)
+    elif lasso == True:
+        clf = Lasso()
+        clf.fit(train_features, train_labels)
+    elif kneighbor == True:
+        clf = KNeighborsClassifier()
+        clf.fit(train_features, train_labels)    
     if not clf:
         return None
     else:
@@ -332,13 +341,25 @@ def test_user_set(test_set, clf, restaurant_df, users_df, comb_features, thresho
 
 def get_top_ten_recs(test_predictions):
     #Input: 
-    #test_predictions: A list of classification predictions for the user's set of test restaurants
+    #test_predictions: A list of tuples in the form (Confidence, Classification Prediction) for the user's set of test restaurants
     #Output: A list of the top 10 restaurants that the classification algorithm is most confident in
     if test_predictions:
         confidence_tuple = [(float(sum(list(x[0])))/float(len(x[0])),x[1]) for x in test_predictions]
         confidence_tuple.sort()
         top_ten = confidence_tuple[-10:]
         return top_ten
+    else:
+        print "Empty List Passed"
+        return None
+
+def get_log_loss(test_predictions):
+    #Input: 
+    #test_predictions: A list of tuples in the form (Confidence, Classification Prediction) for the user's set of test restaurants
+    #Output: The log loss score associated with each classifier
+    if test_predictions:
+        raw_log = [x[1] * math.log(x[0]) + (1-x[1]) * math.log(1-x[0]) for x in test_predictions]
+        log_loss = float(sum(raw_log))/float(len(raw_log))
+        return log_loss
     else:
         print "Empty List Passed"
         return None
