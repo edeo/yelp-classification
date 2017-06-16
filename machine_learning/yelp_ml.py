@@ -166,7 +166,7 @@ def make_featureunion(sent_percent=True, tf = True, lda = True):
     return comb_features
 
 
-def fit_model(train_features, train_labels, svm_clf = False, RandomForest = False, nb = False, lasso = False, kneighbor=False):
+def fit_model(train_features, train_labels, svm_clf = False, RandomForest = False, nb = False):
     #Input: SVM, RandomForest, and NB are all boolean variables and indicate which model should be fitted
     #SVM: Linear Support Vector Machine
     #RandomForest: Random Forest, we set the max_depth equal to 50 because of prior tests
@@ -187,9 +187,6 @@ def fit_model(train_features, train_labels, svm_clf = False, RandomForest = Fals
     elif lasso == True:
         clf = Lasso()
         clf.fit(train_features, train_labels)
-    elif kneighbor == True:
-        clf = KNeighborsClassifier()
-        clf.fit(train_features, train_labels)    
     if not clf:
         return None
     else:
@@ -336,7 +333,7 @@ def test_user_set(test_set, clf, restaurant_df, users_df, comb_features, thresho
         else:
             actual_rating = 0
 
-        comb_error.append((test_prediction,abs(predicted_rating - actual_rating)))
+        comb_error.append((test_prediction, predicted_rating, actual_rating))
     return comb_error
 
 def get_top_ten_recs(test_predictions):
@@ -357,9 +354,39 @@ def get_log_loss(test_predictions):
     #test_predictions: A list of tuples in the form (Confidence, Classification Prediction) for the user's set of test restaurants
     #Output: The log loss score associated with each classifier
     if test_predictions:
-        raw_log = [x[1] * math.log(x[0]) + (1-x[1]) * math.log(1-x[0]) for x in test_predictions]
+        test_predictions = [(np.append(x[0],0.0000000000001),x[1], x[2]) if x[0].mean() == 0.0 else x for x in test_predictions]
+        test_predictions = [(np.append(x[0],0.0000000000001),x[1], x[2]) if x[0].mean() == 1 else x for x in test_predictions]
+        raw_log = [x[1] * math.log(x[0].mean()) + (1-x[2]) * math.log(1-x[0].mean()) for x in test_predictions]
         log_loss = float(sum(raw_log))/float(len(raw_log))
         return log_loss
+    else:
+        print "Empty List Passed"
+        return None
+
+def get_precision_score(test_predictions):
+    #Input: 
+    #test_predictions: A list of tuples in the form (Confidence, Classification Prediction) for the user's set of test restaurants
+    #Output: The accuracy score associated with each classifier
+    if test_predictions:
+        true_positive = [x for x in test_predictions if (x[1] == x[2]) & (x[1] == 1)]
+        false_positive = [x for x in test_predictions if (x[1] != x[2]) & (x[1] == 1)]
+        try:
+            precision_score = float(len(true_positive))/float(len(true_positive) + len(false_positive))
+        except:
+            precision_score = 0.0
+        return precision_score
+    else:
+        print "Empty List Passed"
+        return None
+
+def get_accuracy_score(test_predictions):
+    #Input: 
+    #test_predictions: A list of tuples in the form (Confidence, Classification Prediction) for the user's set of test restaurants
+    #Output: The accuracy score associated with each classifier
+    if test_predictions:
+        test_errors = [abs(x[1]-x[2]) for x in test_predictions]
+        accuracy_score = float(sum(test_errors))/float(len(test_errors))
+        return accuracy_score
     else:
         print "Empty List Passed"
         return None
