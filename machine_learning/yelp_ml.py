@@ -13,7 +13,6 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.linear_model import Lasso
 from sklearn import svm
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_score
@@ -146,12 +145,12 @@ def make_featureunion(sent_percent=True, tf = True, lda = True):
     if sent_percent == False:
         comb_features = FeatureUnion([('tf', TfIdfGramTransformer()), 
                               ('lda', Pipeline([('bow', TfidfVectorizer(stop_words='english', ngram_range = (1,1))), 
-                                        ('lda_transform', LatentDirichletAllocation(n_topics=500))]))
+                                        ('lda_transform', LatentDirichletAllocation(n_topics=50))]))
                              ])
     elif tf == False:
         comb_features = FeatureUnion([('sent_percent',SentimentPercentage()), 
                               ('lda', Pipeline([('bow', TfidfVectorizer(stop_words='english', ngram_range = (1,1))), 
-                                        ('lda_transform', LatentDirichletAllocation(n_topics=500))]))
+                                        ('lda_transform', LatentDirichletAllocation(n_topics=50))]))
                              ])
     elif lda == False:
         comb_features = FeatureUnion([('sent_percent',SentimentPercentage()),('tf', TfIdfGramTransformer())
@@ -159,7 +158,7 @@ def make_featureunion(sent_percent=True, tf = True, lda = True):
     else:
         comb_features = FeatureUnion([('sent_percent',SentimentPercentage()),('tf', TfIdfGramTransformer()), 
                               ('lda', Pipeline([('bow', TfidfVectorizer(stop_words='english', ngram_range = (1,1))), 
-                                        ('lda_transform', LatentDirichletAllocation(n_topics=500))])),
+                                        ('lda_transform', LatentDirichletAllocation(n_topics=50))])),
                               ('tf_bow', TfidfVectorizer(stop_words='english'))
                              ])
 
@@ -178,19 +177,17 @@ def fit_model(train_features, train_labels, svm_clf = False, RandomForest = Fals
     if svm_clf == True:
         clf = svm.LinearSVC()
         clf.fit(train_features, train_labels)
+        return clf
     elif RandomForest == True:
         clf = RandomForestClassifier(max_depth = 100, max_leaf_nodes=50, criterion='entropy')
         clf.fit(train_features, train_labels)
+        return clf
     elif nb == True:
         clf = GaussianNB()
         clf.fit(train_features, train_labels)
-    elif lasso == True:
-        clf = Lasso()
-        clf.fit(train_features, train_labels)
-    if not clf:
-        return None
-    else:
         return clf
+    else:
+        return None
 
 def fit_features(train_reviews, comb_features):
     #Input:
