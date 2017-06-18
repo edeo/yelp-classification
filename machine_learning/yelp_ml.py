@@ -11,16 +11,13 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.ensemble import RandomForestClassifier
+from sklearn_deltatfidf import DeltaTfidfVectorizer
 from sklearn.naive_bayes import GaussianNB
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn_deltatfidf import DeltaTfidfVectorizer
 from sklearn import svm
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import precision_score
 import math
-from sklearn.metrics import log_loss
 import string
 from sklearn.feature_extraction.text import TfidfVectorizer
-import xgboost as xgb
 from gensim import corpora, models, similarities, matutils
 #################################
 #Declare import word dictionaries
@@ -143,7 +140,7 @@ def make_featureunion(sent_percent=True, tf = True, lda = True):
     #Output: A FeatureUnion object with the specified features horizontally stacked in a SciPy Sparse Matrix.
 
     if sent_percent == False:
-        comb_features = FeatureUnion([('tf', TfIdfGramTransformer()), 
+        comb_features = FeatureUnion([('tf', TfIdfGramTransformer()),
                               ('lda', Pipeline([('bow', TfidfVectorizer(stop_words='english', ngram_range = (1,1))), 
                                         ('lda_transform', LatentDirichletAllocation(n_topics=50))]))
                              ])
@@ -237,14 +234,6 @@ def get_transformed_features(comb_features, reviews):
 
     return transformed_reviews
 
-def stack_lsi_features(transformed_reviews, lsi_features):
-    #Input: 
-    #transformed_reviews: reviews transormed using a FeatureUnion object
-    #lsi_features: Reviews transformed using the LSI model
-    #Output: A stacked matrix of LSI and SKLearn's FeatureUnion features
-    train_features = sparse.hstack((transformed_reviews, lsi_features))
-    return train_features
-
 def make_biz_df(user_id, restreview):
     #Input: 
     #user_id: A specific customer ID
@@ -288,7 +277,7 @@ def make_user_df(user_specific_reviews):
     user_df = pd.DataFrame({'review_text': user_reviews, 'rating': user_ratings, 'biz_id': business_ids})
     return user_df
 
-def test_user_set(test_set, clf, restaurant_df, users_df, comb_features, threshold, lsi = None, topics = None, dictionary = None):
+def test_user_set(test_set, clf, restaurant_df, users_df, comb_features, threshold, lsi = None, topics = None, dictionary = None, delta_tfidf = None):
     #Input: 
     #test_set: The set of restaurant IDs, split from the users total set, on which we will test our classifier
     #clf: Classifier trained on the fully stacked features 
@@ -313,14 +302,20 @@ def test_user_set(test_set, clf, restaurant_df, users_df, comb_features, thresho
         #Stack the features
         if lsi == None or topics == None or dictionary == None:
             stacked_test_features = test_features.todense()
+        elif delta_tfidf != None:
+            test_lsi = get_lsi_features(test_reviews, lsi, topics, dictionary)
+            test_delta_tfidf = delta_tfidf.transform(test_reviews)
+            stacked_test_features = sparse.hstack((test_features, test_lsi, test_delta_tfidf))
+            stacked_test_features =  stacked_test_features.todense()
         else:
             test_lsi = get_lsi_features(test_reviews, lsi, topics, dictionary)
-            stacked_test_features = stack_lsi_features(test_features, test_lsi)
+            stacked_test_features = sparse.hstack((test_features, test_lsi))
             stacked_test_features =  stacked_test_features.todense()
+
         #Get ML prediction
         test_prediction = clf.predict(stacked_test_features)
 
-        if test_prediction.mean() > threshold:
+        if test_prediction.mean() >= threshold:
             predicted_rating = 1
 
         actual_rating = list(users_df[users_df['biz_id'] == test_set[i]]['rating'])[0]
