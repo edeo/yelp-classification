@@ -78,7 +78,7 @@ for j in tqdm.tqdm(range(0, len(users.keys()[1:2]))):
     lsi, topics, dictionary = yml.fit_lsi(train_reviews)
 
     #Create a training and test sample from the user reviewed restaurants
-    split_samp = .30
+    split_samp = .25
     random_int = random.randint(1, len(business_ids)-1)
     len_random = int(len(business_ids) * split_samp)
     test_set = business_ids[random_int:random_int+len_random]
@@ -118,22 +118,22 @@ for j in tqdm.tqdm(range(0, len(users.keys()[1:2]))):
         comb_features = yml.make_featureunion(sent_percent=feature_selection[feature][0], 
                                               tf = feature_selection[feature][1], 
                                               lda = feature_selection[feature][2])
-        if feature_selection[feature][1] == True:
-            #Create the Delta-TFIDF Feature
-            delta_vect = DeltaTfidfVectorizer(stop_words = 'english')
-            delta_tfidf_vect = delta_vect.fit_transform(sub_train_reviews,train_labels)
-            comb_features.fit(sub_train_reviews)
-            train_features = comb_features.transform(sub_train_reviews)
-            train_lsi = yml.get_lsi_features(sub_train_reviews, lsi, topics, dictionary)
-            train_features = sparse.hstack((train_features, train_lsi, delta_tfidf_vect))
-            train_features = train_features.todense() 
-        else:
-            delta_vect = None
-            comb_features.fit(sub_train_reviews)
-            train_features = comb_features.transform(sub_train_reviews)
-            train_lsi = yml.get_lsi_features(sub_train_reviews, lsi, topics, dictionary)
-            train_features = sparse.hstack((train_features, train_lsi))
-            train_features = train_features.todense()
+        # if feature_selection[feature][1] == True:
+        #     #Create the Delta-TFIDF Feature
+        #     delta_vect = DeltaTfidfVectorizer(stop_words = 'english')
+        #     delta_tfidf_vect = delta_vect.fit_transform(sub_train_reviews,train_labels)
+        #     comb_features.fit(sub_train_reviews)
+        #     train_features = comb_features.transform(sub_train_reviews)
+        #     train_lsi = yml.get_lsi_features(sub_train_reviews, lsi, topics, dictionary)
+        #     train_features = sparse.hstack((train_features, train_lsi, delta_tfidf_vect))
+        #     train_features = train_features.todense() 
+        # else:
+        delta_vect = None
+        comb_features.fit(sub_train_reviews)
+        train_features = comb_features.transform(sub_train_reviews)
+        train_lsi = yml.get_lsi_features(sub_train_reviews, lsi, topics, dictionary)
+        train_features = sparse.hstack((train_features, train_lsi))
+        train_features = train_features.todense()
 
         #Fit LSI model and return number of LSI topics
         lsi, topics, dictionary = yml.fit_lsi(sub_train_reviews)
