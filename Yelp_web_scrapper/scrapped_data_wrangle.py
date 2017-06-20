@@ -9,5 +9,9 @@ for review in reviews_json.keys():
     for text in reviews_json[review]['review']:
       biz_w_list_of_reviews[review].append(text)
       
-      
+# if you just want name of the business and text of the review with the rating
  
+for review in reviews_json.keys():
+    biz_w_list_of_reviews[review]=[]
+    for text in reviews_json[review]['review']:
+      biz_w_list_of_reviews[review].append([text['description'],text['reviewRating']['ratingValue']])
