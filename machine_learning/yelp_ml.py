@@ -84,7 +84,7 @@ class TfIdfGramTransformer(BaseEstimator, TransformerMixin):
         tf_vector = vectorizer.transform(reviews)
         return tf_vector
 
-    def fit(self, reviews, y=None, n_grams = (0,2)):
+    def fit(self, reviews, y=None, n_grams = (2,2)):
         vectorizer = TfidfVectorizer(ngram_range = n_grams, stop_words = 'english')
         vectorizer.fit(reviews)
         """Returns `self` unless something different happens in train and test"""
@@ -251,6 +251,9 @@ def make_biz_df(user_id, restreview):
                 biz_ids.append(restreview.keys()[i])
             else:
                 pass
+
+    rest_reviews = [review.replace(".", " ") for review in rest_reviews]
+    rest_reviews = [review.replace("\n", "") for review in rest_reviews]
     rest_reviews = [review.encode('utf-8').translate(None, string.punctuation) for review in rest_reviews]
 
     biz_df = pd.DataFrame({'review_text': rest_reviews, 'rating': rest_ratings, 'biz_id': biz_ids})
@@ -272,6 +275,8 @@ def make_user_df(user_specific_reviews):
 
     ###WE SHOULD MAKE THE OUR OWN PUNCTUATION RULES
     #https://www.tutorialspoint.com/python/string_translate.htm
+    user_reviews = [review.replace(".", " ") for review in user_reviews]
+    user_reviews = [review.replace("\n", "") for review in user_reviews]
     user_reviews = [review.encode('utf-8').translate(None, string.punctuation) for review in user_reviews]
         
     user_df = pd.DataFrame({'review_text': user_reviews, 'rating': user_ratings, 'biz_id': business_ids})
@@ -327,6 +332,48 @@ def test_user_set(test_set, clf, restaurant_df, users_df, comb_features, thresho
 
         comb_error.append((test_prediction, predicted_rating, actual_rating))
     return comb_error
+
+def make_rec(restaurants, clf, threshold, comb_features, lsi = None, topics = None, dictionary = None):
+    #Input: 
+    #restaurants: The set of restaurant IDs, split from the users total set, on which we will test our classifier
+    #clf: Classifier trained on the fully stacked features 
+    #restaurant_df: A dataframe of the restaurants in the test_set and the reviews associated with each restaurant
+    #users_df: A dataframe of the users reviews with the tuple (user, restaurant id, restaurant rating, review)
+    #comb_features: A FeatureUnion object that has been trained on the user's other reviews
+    #threshold: A float value 
+    #Note: lsi and topics should be GLOBAL variables after running fit_lsi
+    #Output: A list of errors on predicting whether or not the user likes the restaurant in the test set
+    test_results = []
+    for i in range(0,len(restaurants.keys())):
+        predicted_rating = 0
+        #Get reviews for that restaurant
+        test_reviews = []
+        
+        for review in restaurants[restaurants.keys()[i]]['review']:
+            test_reviews.append(review['description'])
+        if len(test_reviews) >= 20:
+             #Transform features
+            test_features = comb_features.transform(test_reviews)
+
+            #Stack the features
+            if lsi == None or topics == None or dictionary == None:
+                stacked_test_features = test_features.todense()
+            else:
+                test_lsi = get_lsi_features(test_reviews, lsi, topics, dictionary)
+                stacked_test_features = sparse.hstack((test_features, test_lsi))
+                stacked_test_features = stacked_test_features.todense()
+
+            #Get ML prediction
+            test_prediction = clf.predict(stacked_test_features)
+
+            if test_prediction.mean() >= threshold:
+                predicted_rating = 1
+
+            test_results.append((test_reviews, restaurants.keys()[i], 
+                test_prediction.mean(), predicted_rating))
+        else:
+            continue
+    return test_results
 
 def get_top_ten_recs(test_predictions):
     #Input: 

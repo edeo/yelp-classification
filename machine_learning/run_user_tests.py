@@ -79,10 +79,9 @@ for j in tqdm.tqdm(range(0, len(users.keys()[1:2]))):
 
     #Create a training and test sample from the user reviewed restaurants
     split_samp = .25
-    random_int = random.randint(1, len(business_ids)-1)
     len_random = int(len(business_ids) * split_samp)
-    test_set = business_ids[random_int:random_int+len_random]
-    training_set = business_ids[0:random_int]+business_ids[random_int+len_random:len(business_ids)]
+    test_set = random.sample(business_ids, len_random)
+    training_set = [x for x in business_ids if x not in test_set]
     sub_train_reviews, train_labels, train_reviews, train_ratings = [], [], [], []
 
     #Create a list of training reviews and training ratings
