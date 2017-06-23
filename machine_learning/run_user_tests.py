@@ -141,17 +141,21 @@ for j in tqdm.tqdm(range(0, len(users.keys()[1:2]))):
         model_runs = {"svm": (True, False, False),
                       "rf": (False, True, False), 
                       "naive_bayes": (False, False, True)}
-
-        for model_run in model_runs.keys():
-            clf = yml.fit_model(train_features, train_labels, svm_clf = model_runs[model_run][0], 
-                            RandomForest = model_runs[model_run][1], 
-                                nb = model_runs[model_run][2])
-            threshold = 0.7
-            error = yml.test_user_set(test_set, clf, restaurant_df, user_df, comb_features, 
-                                      threshold, lsi, topics, dictionary, delta_vect)
-            test_results[(feature, model_run)] = (yml.get_log_loss(error), 
-                                            yml.get_accuracy_score(error), 
-                                            yml.get_precision_score(error))
+        try:
+            for model_run in model_runs.keys():
+                clf = yml.fit_model(train_features, train_labels, svm_clf = model_runs[model_run][0], 
+                                RandomForest = model_runs[model_run][1], 
+                                    nb = model_runs[model_run][2])
+                threshold = 0.7
+                error = yml.test_user_set(test_set, clf, restaurant_df, user_df, comb_features, 
+                                          threshold, lsi, topics, dictionary, delta_vect)
+                test_results[(feature, model_run)] = (yml.get_log_loss(error), 
+                                                yml.get_accuracy_score(error), 
+                                                yml.get_precision_score(error))
+        except:
+                test_results[(feature, model_run)] = ("Something went wrong", 
+                                                "Something went wrong", 
+                                                "Something went wrong")           
     
     string_keys_dict = {}
     for key in test_results.keys():
