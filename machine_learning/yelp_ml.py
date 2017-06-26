@@ -276,7 +276,7 @@ def make_user_df(user_specific_reviews):
     ###WE SHOULD MAKE THE OUR OWN PUNCTUATION RULES
     #https://www.tutorialspoint.com/python/string_translate.htm
     user_reviews = [review.replace(".", " ") for review in user_reviews]
-    user_reviews = [review.replace("\n", "") for review in user_reviews]
+    user_reviews = [review.replace("\n", " ") for review in user_reviews]
     user_reviews = [review.encode('utf-8').translate(None, string.punctuation) for review in user_reviews]
         
     user_df = pd.DataFrame({'review_text': user_reviews, 'rating': user_ratings, 'biz_id': business_ids})
