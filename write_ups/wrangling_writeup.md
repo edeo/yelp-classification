@@ -1,6 +1,8 @@
 
 After the data was injested into the Mongo database, we had to wrangle the data into a subset for our model.
 
+The problem to solve now was two fold : filter out reviews that would not help our model, find users with enough reviews that we could both train models on thier reviews and have a meaningful set of reviews to test those models on, and prepare the data so that it would be in a form that could be fed thorugh the model.
+
 The academnic dataset provided by Yelp consisted of 5 json files : Business.json, Users.json,Reviews.json, checkins.json and tips.json. For our project we did not use the Checkins or Tips dataset.
 
 The Business dataset had a json dictionary for representing each business in the dataset and information about the business type, general information such as thier business hours and information about how many reviews and the aggregate rating of the business.
