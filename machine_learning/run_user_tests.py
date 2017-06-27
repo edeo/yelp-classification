@@ -89,53 +89,53 @@ for j in tqdm.tqdm(range(0, len(users.keys()))):
             string_keys_dict[str(users.keys()[j])] = test_results
             continue
         else:
-        for i in range(0, len(business_ids)):
-            rlist = []
-            for obj in reviews.find({'business_id':business_ids[i]}):
-                rlist.append(obj)
-            restreview[business_ids[i]] = rlist
+            for i in range(0, len(business_ids)):
+                rlist = []
+                for obj in reviews.find({'business_id':business_ids[i]}):
+                    rlist.append(obj)
+                restreview[business_ids[i]] = rlist
 
-        restaurant_df = yml.make_biz_df(users.keys()[j], restreview)
+            restaurant_df = yml.make_biz_df(users.keys()[j], restreview)
 
-        #Make a FeatureUnion object with the desired features then fit to train reviews
-        feature_selection = {"sent_tf":(True, True, False), 
-                             "sent": (True,False,False),
-                             "tf_lda": (False,True,True), 
-                             "all": (True, True, True)}
-
-        for feature in feature_selection.keys():
             #Make a FeatureUnion object with the desired features then fit to train reviews
-            comb_features = yml.make_featureunion(sent_percent=feature_selection[feature][0], 
-                                                  tf = feature_selection[feature][1], 
-                                                  lda = feature_selection[feature][2])
+            feature_selection = {"sent_tf":(True, True, False), 
+                                 "sent": (True,False,False),
+                                 "tf_lda": (False,True,True), 
+                                 "all": (True, True, True)}
 
-            delta_vect = None
-            comb_features.fit(sub_train_reviews)
-            train_features = comb_features.transform(sub_train_reviews)
+            for feature in feature_selection.keys():
+                #Make a FeatureUnion object with the desired features then fit to train reviews
+                comb_features = yml.make_featureunion(sent_percent=feature_selection[feature][0], 
+                                                      tf = feature_selection[feature][1], 
+                                                      lda = feature_selection[feature][2])
 
-            #Fit LSI model and return number of LSI topics
-            lsi, topics, dictionary = yml.fit_lsi(sub_train_reviews)
-            train_lsi = yml.get_lsi_features(sub_train_reviews, lsi, topics, dictionary)
+                delta_vect = None
+                comb_features.fit(sub_train_reviews)
+                train_features = comb_features.transform(sub_train_reviews)
 
-            #Stack the LSI and combined features together
-            train_features = sparse.hstack((train_features, train_lsi))
-            train_features = train_features.todense()
+                #Fit LSI model and return number of LSI topics
+                lsi, topics, dictionary = yml.fit_lsi(sub_train_reviews)
+                train_lsi = yml.get_lsi_features(sub_train_reviews, lsi, topics, dictionary)
 
-            #fit each model in turn 
-            model_runs = {"svm": (True, False, False),
-                          "rf": (False, True, False), 
-                          "naive_bayes": (False, False, True)}
+                #Stack the LSI and combined features together
+                train_features = sparse.hstack((train_features, train_lsi))
+                train_features = train_features.todense()
 
-            for model_run in model_runs.keys():
-                clf = yml.fit_model(train_features, train_labels, svm_clf = model_runs[model_run][0], 
-                                RandomForest = model_runs[model_run][1], 
-                                    nb = model_runs[model_run][2])
-                threshold = 0.7
-                error = yml.test_user_set(test_set, clf, restaurant_df, user_df, comb_features, 
-                                          threshold, lsi, topics, dictionary, delta_vect)
-                test_results[str((feature, model_run))] = (yml.get_log_loss(error), 
-                                                yml.get_accuracy_score(error), 
-                                                yml.get_precision_score(error))
+                #fit each model in turn 
+                model_runs = {"svm": (True, False, False),
+                              "rf": (False, True, False), 
+                              "naive_bayes": (False, False, True)}
+
+                for model_run in model_runs.keys():
+                    clf = yml.fit_model(train_features, train_labels, svm_clf = model_runs[model_run][0], 
+                                    RandomForest = model_runs[model_run][1], 
+                                        nb = model_runs[model_run][2])
+                    threshold = 0.7
+                    error = yml.test_user_set(test_set, clf, restaurant_df, user_df, comb_features, 
+                                              threshold, lsi, topics, dictionary, delta_vect)
+                    test_results[str((feature, model_run))] = (yml.get_log_loss(error), 
+                                                    yml.get_accuracy_score(error), 
+                                                    yml.get_precision_score(error))
                 
     string_keys_dict[str(users.keys()[j])] = test_results
             
