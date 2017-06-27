@@ -46,22 +46,17 @@ db = conn.get_database('cleaned_data')
 reviews = db.get_collection('restaurant_reviews')
 users_results = {}
 
-for j in tqdm.tqdm(range(0, len(users.keys()[12:20]))):
+for j in tqdm.tqdm(range(0, len(users.keys()))):
     test_results = {}
     user_df = yml.make_user_df(users[users.keys()[j]])
+    
     if len([x for x in user_df['rating'] if x < 4]) < 20:
-        pass
+        string_keys_dict[str(users.keys()[j])] = test_results
+        continue
     else:
         business_ids = list(set(user_df['biz_id']))
         restreview = {}
-        for i in range(0, len(business_ids)):
-            rlist = []
-            for obj in reviews.find({'business_id':business_ids[i]}):
-                rlist.append(obj)
-            restreview[business_ids[i]] = rlist
-
-        restaurant_df = yml.make_biz_df(users.keys()[j], restreview)
-
+        
         #Create a training and test sample from the user reviewed restaurants
         split_samp = .25
         len_random = int(len(business_ids) * split_samp)
@@ -89,6 +84,18 @@ for j in tqdm.tqdm(range(0, len(users.keys()[12:20]))):
 
         #Make the train labels binary
         train_labels = [1 if x >=4 else 0 for x in train_labels]
+        
+        if not sub_train_reviews:
+            string_keys_dict[str(users.keys()[j])] = test_results
+            continue
+        else:
+        for i in range(0, len(business_ids)):
+            rlist = []
+            for obj in reviews.find({'business_id':business_ids[i]}):
+                rlist.append(obj)
+            restreview[business_ids[i]] = rlist
+
+        restaurant_df = yml.make_biz_df(users.keys()[j], restreview)
 
         #Make a FeatureUnion object with the desired features then fit to train reviews
         feature_selection = {"sent_tf":(True, True, False), 

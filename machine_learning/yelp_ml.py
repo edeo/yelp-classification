@@ -19,18 +19,6 @@ import math
 import string
 from sklearn.feature_extraction.text import TfidfVectorizer
 from gensim import corpora, models, similarities, matutils
-#################################
-#Declare import word dictionaries
-#################################
-
-lh_neg = open('../input/negative-words.txt', 'r').read()
-lh_neg = lh_neg.split('\n')
-lh_pos = open('../input/positive-words.txt', 'r').read()
-lh_pos = lh_pos.split('\n')
-
-pos_vectorizer = CountVectorizer(vocabulary = lh_pos)
-neg_vectorizer = CountVectorizer(vocabulary = lh_neg)
-stop_words = set(stopwords.words('english'))
 
 #################################
 #Feature objects and functions
@@ -259,6 +247,12 @@ def make_biz_df(user_id, restreview):
     biz_df = pd.DataFrame({'review_text': rest_reviews, 'rating': rest_ratings, 'biz_id': biz_ids})
 
     return biz_df
+
+def display_topics(model, feature_names, no_top_words):
+    for topic_idx, topic in enumerate(model.components_):
+        print "Topic %d:" % (topic_idx)
+        print " ".join([feature_names[i]
+                        for i in topic.argsort()[:-no_top_words - 1:-1]])
 
 def make_user_df(user_specific_reviews):
     #Input: 
