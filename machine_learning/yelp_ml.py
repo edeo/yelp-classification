@@ -252,6 +252,10 @@ def make_biz_df(user_id, restreview):
             else:
                 pass
 
+    # numbers = re.compile("\d+")
+    # rest_reviews = [' '.join([word for word in review.lower().split() if not numbers.match(word)])
+    #           for review in rest_reviews]
+
     rest_reviews = [review.replace(".", " ") for review in rest_reviews]
     rest_reviews = [review.replace("\n", "") for review in rest_reviews]
     rest_reviews = [review.encode('utf-8').translate(None, string.punctuation) for review in rest_reviews]
@@ -259,7 +263,7 @@ def make_biz_df(user_id, restreview):
     biz_df = pd.DataFrame({'review_text': rest_reviews, 'rating': rest_ratings, 'biz_id': biz_ids})
 
     return biz_df
-    
+
 def display_topics(model, feature_names, no_top_words):
     for topic_idx, topic in enumerate(model.components_):
         print "Topic %d:" % (topic_idx)
@@ -279,8 +283,11 @@ def make_user_df(user_specific_reviews):
         user_ratings.append(review['stars'])
         business_ids.append(review['business_id'])
 
-    ###WE SHOULD MAKE THE OUR OWN PUNCTUATION RULES
-    #https://www.tutorialspoint.com/python/string_translate.htm
+    #Make numbers regex rule
+    # numbers = re.compile("\d+")
+    # user_reviews = [' '.join([word for word in review.lower().split() if not numbers.match(word)])
+    #           for review in user_reviews]
+              
     user_reviews = [review.replace(".", " ") for review in user_reviews]
     user_reviews = [review.replace("\n", " ") for review in user_reviews]
     user_reviews = [review.encode('utf-8').translate(None, string.punctuation) for review in user_reviews]

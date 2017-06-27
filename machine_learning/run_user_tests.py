@@ -45,6 +45,7 @@ conn = MongoClient()
 db = conn.get_database('cleaned_data')
 reviews = db.get_collection('restaurant_reviews')
 users_results = {}
+string_keys_dict = {}
 
 for j in tqdm.tqdm(range(0, len(users.keys()))):
     test_results = {}
