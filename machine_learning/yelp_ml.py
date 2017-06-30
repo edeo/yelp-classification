@@ -11,9 +11,8 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.ensemble import RandomForestClassifier
-from sklearn_deltatfidf import DeltaTfidfVectorizer
 from sklearn.naive_bayes import GaussianNB
-from sklearn_deltatfidf import DeltaTfidfVectorizer
+import matplotlib.pyplot as plt
 from sklearn import svm
 import math
 import string
@@ -32,6 +31,43 @@ pos_vectorizer = CountVectorizer(vocabulary = lh_pos)
 neg_vectorizer = CountVectorizer(vocabulary = lh_neg)
 stop_words = set(stopwords.words('english'))
 
+#################################
+#Plotting functions
+#################################
+
+def label_point(x, y, ax):
+    a = pd.concat({'x': x, 'y': y}, axis=1)
+    a = a[a['y'] != max(a['y'])]
+    
+    for i, point in a.iterrows():
+        if (point['y'] > (a['y'].mean() + 1.5 * a['y'].std()) ):
+            ax.text(point['x'], point['y'], int(point['x']), 
+                    verticalalignment='bottom', horizontalalignment='left')
+        else:
+            continue
+
+def plot_coefficients(classifier, feature_names, top_features=20):
+    coef = classifier.coef_.ravel()
+    top_positive_coefficients = np.argsort(coef)[-top_features:]
+    top_negative_coefficients = np.argsort(coef)[:top_features]
+    top_coefficients = np.hstack([top_negative_coefficients, top_positive_coefficients])
+    # create plot
+    plt.figure(figsize=(15, 5))
+    colors = ['red' if c < 0 else 'blue' for c in coef[top_coefficients]]
+    plt.bar(np.arange(2 * top_features), coef[top_coefficients], color=colors)
+    feature_names = np.array(feature_names)
+    plt.xticks(np.arange(1, 1 + 2 * top_features), feature_names[top_coefficients], 
+               rotation=60, ha='right')
+    plt.show()
+
+def display_topics(model, feature_names, no_top_words, top_topics):
+    for topic_idx, topic in enumerate(model.components_):
+        if topic_idx in top_topics:
+            print "Topic %d:" % (topic_idx)
+            print " ".join([feature_names[i]
+                            for i in topic.argsort()[:-no_top_words - 1:-1]])
+        else:
+            pass
 #################################
 #Feature objects and functions
 #################################
@@ -264,11 +300,6 @@ def make_biz_df(user_id, restreview):
 
     return biz_df
 
-def display_topics(model, feature_names, no_top_words):
-    for topic_idx, topic in enumerate(model.components_):
-        print "Topic %d:" % (topic_idx)
-        print " ".join([feature_names[i]
-                        for i in topic.argsort()[:-no_top_words - 1:-1]])
 
 def make_user_df(user_specific_reviews):
     #Input: 
@@ -287,7 +318,7 @@ def make_user_df(user_specific_reviews):
     # numbers = re.compile("\d+")
     # user_reviews = [' '.join([word for word in review.lower().split() if not numbers.match(word)])
     #           for review in user_reviews]
-              
+
     user_reviews = [review.replace(".", " ") for review in user_reviews]
     user_reviews = [review.replace("\n", " ") for review in user_reviews]
     user_reviews = [review.encode('utf-8').translate(None, string.punctuation) for review in user_reviews]
